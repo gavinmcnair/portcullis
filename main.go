@@ -1,10 +1,11 @@
 package main
 
 import (
+	"crypto/rand"
 	"github.com/caarlos0/env"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"math/rand"
+	"math/big"
 	"net"
 	"time"
 )
@@ -14,7 +15,7 @@ type config struct {
 	Hostname     string        `env:"HOSTNAME,required"`
 	InitialDelay time.Duration `env:"INITIAL_DELAY" envDefault:"0s"`
 	Port         string        `env:"PORT,required"`
-	RandomWindow int           `env:"RANDOM_WINDOW" envDefault:"0"`
+	RandomWindow int64         `env:"RANDOM_WINDOW" envDefault:"0"`
 	SleepCount   time.Duration `env:"SLEEP_COUNT" envDefault:"5s"`
 	Timeout      time.Duration `env:"TIMEOUT" envDefault:"1s"`
 }
@@ -39,7 +40,7 @@ func run() error {
 		Str("hostname", cfg.Hostname).
 		Str("ports", cfg.Port).
 		Dur("initial_delay", cfg.InitialDelay).
-		Int("random_window", cfg.RandomWindow).
+		Int64("random_window", cfg.RandomWindow).
 		Dur("sleep_count", cfg.SleepCount).
 		Dur("timeout", cfg.Timeout).
 		Msg("starting portcullis")
@@ -71,7 +72,10 @@ func run() error {
 		log.Info().Msg("target port is responding")
 
 		if cfg.RandomWindow != 0 && failureCount > 1 {
-			waitFor(cfg.RandomWindow)
+			err := waitFor(cfg.RandomWindow)
+			if err != nil {
+				return err
+			}
 		}
 
 		if cfg.StartDelay.Seconds() > 0 {
@@ -97,13 +101,28 @@ func raw_connect(host string, timeout time.Duration, port string) (bool, error) 
 	return false, err
 }
 
-func waitFor(randomWindow int) {
-	randomSeconds := rand.Intn(randomWindow)
+func waitFor(randomWindow int64) error {
+	randomSeconds, err := genRandNum(randomWindow)
+	if err != nil {
+		return err
+	}
 
 	log.Info().
-		Int("wait_duration_seconds", randomSeconds).
-		Int("max_duration_seconds", randomWindow).
-		Msg("sleeping for random amount of time in [0, wait_duration_seconds)")
+		Int64("wait_duration_seconds", randomSeconds).
+		Int64("max_duration_seconds", randomWindow).
+		Msg("sleeping for random period")
 
-	time.Sleep(time.Duration(randomSeconds) * time.Microsecond)
+	time.Sleep(time.Duration(randomSeconds) * time.Second)
+	return nil
+}
+
+func genRandNum(max int64) (int64, error) {
+	bg := big.NewInt(max)
+
+	n, err := rand.Int(rand.Reader, bg)
+	if err != nil {
+		return 0, err
+	}
+
+	return n.Int64(), err
 }

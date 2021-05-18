@@ -1,4 +1,4 @@
-module portcullis
+module github.com/gavinmcnair/portcullis
 
 go 1.15
 

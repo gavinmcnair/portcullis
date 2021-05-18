@@ -1,6 +1,6 @@
 FROM golang:1.15.6 as builder
 
-WORKDIR .
+WORKDIR /go/src/github.com/gavinmcnair/portcullis
 
 COPY . .
 
@@ -19,6 +19,6 @@ LABEL git.commit=$git_commit
 LABEL git.branch=$git_branch
 LABEL build.on=$built_on
 
-COPY --from=builder /portcullis/bin/linux/portcullis .
+COPY --from=builder /go/src/github.com/gavinmcnair/portcullis/bin/linux/portcullis .
 
 CMD [ "/portcullis" ]
